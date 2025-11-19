@@ -58,8 +58,8 @@
 | フィールド名 | 型        | 説明                                      |
 | :----------- | :-------- | :---------------------------------------- |
 | uid          | string    | Firebase Auth の UID（＝ドキュメント ID） |
-| name         | string    | Google アカウントの名前                   |
-| email        | string    | メールアドレス                            |
+| name         | string    | ユーザー名（認証方法に依らず）            |
+| email        | string    | メールアドレス（Google or 登録時入力）    |
 | favorites    | array     | お気に入りレシピ（オブジェクト配列）      |
 | histories    | array     | 作ったレシピ履歴（オブジェクト配列）      |
 | createdAt    | timestamp | 登録日時                                  |
