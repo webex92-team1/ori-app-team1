@@ -215,8 +215,8 @@ ori-app-team1/
 - **担当たいちゃん**: Issue #3（Firestoreヘルパー）
 
 #### Week 2: 認証 & 基本UI
-- **担当A**: Issue #4（サインアップ）→ Issue #5（ログイン）
-- **担当B**: Issue #7（食材入力）→ Issue #11（Firestoreルール）
+- **担当あいりり**: Issue #4（サインアップ）→ Issue #5（ログイン）
+- **担当たいちゃん**: Issue #7（食材入力）→ Issue #11（Firestoreルール）
 - **担当C**: Issue #8（レシピ一覧）
 
 #### Week 3: コア機能
