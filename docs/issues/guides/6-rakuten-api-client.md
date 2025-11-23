@@ -1,4 +1,4 @@
-# Issue #6: RakutenレシピAPIクライアントを実装
+# Issue #6: Rakuten レシピ API クライアントを実装
 
 作業ブランチ：feature/issue-6-rakuten-api-client
 
@@ -24,7 +24,7 @@
 
 作業ブランチに移動する
 
-```bash
+```bashz
 git checkout -b feature/issue-6-rakuten-api-client
 ```
 
@@ -80,7 +80,7 @@ node --env-file=.env.local -e "import('./src/lib/recipes.js').then(async (m)=>{c
 1. `git add .`
 2. `git commit -m "feat: RakutenレシピAPIクライアントを実装"`
 3. `git push origin feature/issue-6-rakuten-api-client`
-4. GitHub上でPRを作成
+4. GitHub 上で PR を作成
 
 ---
 
@@ -95,4 +95,3 @@ node --env-file=.env.local -e "import('./src/lib/recipes.js').then(async (m)=>{c
 ## 💬 メモ・質問（必要なら）
 
 - 楽天レシピ API のアプリ ID はチームで共有してください
-
