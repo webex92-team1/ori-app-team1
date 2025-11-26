@@ -210,13 +210,13 @@ ori-app-team1/
 
 #### Week 1: 基盤構築
 - **全員**: Issue #1（Firebase初期化）
-- **担当A**: Issue #2（AuthProvider）
-- **担当B**: Issue #6（RakutenレシピAPI）
-- **担当C**: Issue #3（Firestoreヘルパー）
+- **担当あいりり**: Issue #2（AuthProvider）
+- **担当ずーた**: Issue #6（RakutenレシピAPI）
+- **担当たいちゃん**: Issue #3（Firestoreヘルパー）
 
 #### Week 2: 認証 & 基本UI
-- **担当A**: Issue #4（サインアップ）→ Issue #5（ログイン）
-- **担当B**: Issue #7（食材入力）→ Issue #11（Firestoreルール）
+- **担当あいりり**: Issue #4（サインアップ）→ Issue #5（ログイン）
+- **担当たいちゃん**: Issue #7（食材入力）→ Issue #11（Firestoreルール）
 - **担当C**: Issue #8（レシピ一覧）
 
 #### Week 3: コア機能
