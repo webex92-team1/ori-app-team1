@@ -20,12 +20,24 @@
 
 ---
 
+## 🌲 作業を始めるとき
+
+作業ブランチに移動する
+
+```bash
+git checkout -b feature/issue-4-signup-page-2
+```
+
+---
+
 ## 0. 事前確認
 
 ### 触ってよいファイル
+
 - `src/app/signup/page.jsx`
 
 ### 触らないファイル（ガイド通り）
+
 - `src/app/login/page.jsx`
 - `src/lib/mockdata.js`
 - `src/app/ingredients/page.jsx`
@@ -33,6 +45,7 @@
 - `src/lib/firestore.js`
 
 ### すでに実装済みのもの（前提）
+
 - `src/lib/firebase.js`  
   → `auth`, `googleProvider` が export されている
 - `src/lib/firestore.js`  
@@ -48,18 +61,21 @@
 ## 1. フォーム状態とハンドラの追加
 
 ### 目的
+
 - 入力値（名前 / メールアドレス / パスワード）、ローディング状態、エラー文言を React の state で管理する。
 
 ### やること
+
 1. コンポーネントの冒頭で `useState` と `useRouter` を使う。
 2. `formData`, `isLoading`, `error` の 3 つの state を定義。
 3. `<Input>` に `value` と `onChange` をつなぐ。
 
 ### ポイント
+
 - `handleChange` で `name` 属性を使って汎用的に更新する形にする。
 - 例: `setFormData((prev) => ({ ...prev, [name]: value }));`
 
-※ 現在の `signup/page.jsx` にはすでに以下のような実装があります。この形を維持できていれば **このステップは完了済み** とみなしてOKです。
+※ 現在の `signup/page.jsx` にはすでに以下のような実装があります。この形を維持できていれば **このステップは完了済み** とみなして OK です。
 
 ```23:37:src/app/signup/page.jsx
 export default function SignupPage() {
@@ -84,16 +100,19 @@ export default function SignupPage() {
 ## 2. Firebase エラーコード → 日本語メッセージ変換関数
 
 ### 目的
+
 - Firebase の生のエラーコードを、そのままユーザーに見せない。
 - Issue にあるように「日本語メッセージ」でフォーム上部に表示する。
 
 ### やること
+
 - `signup/page.jsx` の中に `getErrorMessage(errorCode)` 関数を定義し、`switch` 文で主なコードをハンドリングする。
 
 ### 対応例
+
 - `auth/email-already-in-use` → 「このメールアドレスは既に使用されています。」
 - `auth/invalid-email` → 「メールアドレスの形式が正しくありません。」
-- `auth/weak-password` → 「パスワードは6文字以上で入力してください。」
+- `auth/weak-password` → 「パスワードは 6 文字以上で入力してください。」
 
 ※ 現在のコードにはすでに `getErrorMessage` が実装されています。  
 `catch (err)` 内で `setError(getErrorMessage(err.code));` としていれば、このステップも **完了済み** です。
@@ -103,13 +122,15 @@ export default function SignupPage() {
 ## 3. サインアップ処理（メール＋パスワード）
 
 ### 目的
+
 - フォーム送信時に以下の順番で処理する：
-  1. `createUserWithEmailAndPassword(auth, email, password)`  
-  2. `updateProfile` で `displayName` 更新  
-  3. `createUserProfile` で Firestore `users/{uid}` 作成  
+  1. `createUserWithEmailAndPassword(auth, email, password)`
+  2. `updateProfile` で `displayName` 更新
+  3. `createUserProfile` で Firestore `users/{uid}` 作成
   4. `/ingredients` へ `router.push`
 
 ### 実装の流れ
+
 1. `<form>` に `onSubmit={handleSignup}` を付与。
 2. `handleSignup` 内で `e.preventDefault()` を呼ぶ。
 3. リクエスト前に `setIsLoading(true)` + `setError("")`。
@@ -119,22 +140,25 @@ export default function SignupPage() {
 7. `finally` で `setIsLoading(false)`。
 
 ### ローディング表現
+
 - 送信中は:
   - サインアップボタン `disabled`
   - ボタンラベルを「登録中…」に変更
   - `Loader2` アイコンなどを回転させる
 
 ※ すでに `handleSignup` と `<form onSubmit={handleSignup}>`、`isLoading` 管理が実装されていれば、このステップもほぼ完了です。  
-コードを読みながら、**上記の7ステップと一つずつ対応しているか** を確認してください。
+コードを読みながら、**上記の 7 ステップと一つずつ対応しているか** を確認してください。
 
 ---
 
 ## 4. エラーメッセージ表示エリア
 
 ### 目的
+
 - 完了条件の「エラー時は日本語メッセージでフォーム上部に表示」を満たす。
 
 ### やること
+
 - `<CardContent>` 内のフォームの直前に、`error` state を描画するエリアを追加する。
 - 例：
 
@@ -147,16 +171,19 @@ export default function SignupPage() {
 ```
 
 ### 補足
-- バリデーションエラー（空欄、パスワード6文字未満など）は、`required` や `minLength` でブラウザ標準のチェックを使いつつ、Firebase の `auth/weak-password` などは `getErrorMessage` 側で対応する、という役割分担にするとシンプルです。
+
+- バリデーションエラー（空欄、パスワード 6 文字未満など）は、`required` や `minLength` でブラウザ標準のチェックを使いつつ、Firebase の `auth/weak-password` などは `getErrorMessage` 側で対応する、という役割分担にするとシンプルです。
 
 ---
 
 ## 5. Google サインアップ（任意だが推奨）
 
 ### 目的
-- 「Googleで登録」ボタンからも Firebase Auth & Firestore 連携を行う。
+
+- 「Google で登録」ボタンからも Firebase Auth & Firestore 連携を行う。
 
 ### やること
+
 1. `signInWithPopup(auth, googleProvider)` を呼び出す `handleGoogleSignup` 関数を実装。
 2. 取得した `user` から `uid`, `email`, `displayName` を取り出し、`createUserProfile` に渡す。
 3. 成功したら `/ingredients` へ `router.push`。
@@ -171,13 +198,15 @@ export default function SignupPage() {
 ## 6. ボタンの disabled 制御と UI 仕上げ
 
 ### 目的
+
 - 完了条件「送信中はボタンを disabled にし、ローディング表示が出る」をフォーム全体で徹底する。
 
 ### やること
+
 - 以下のすべてに `disabled={isLoading}` を付ける：
   - 名前、メール、パスワードの `<Input>`
   - サインアップボタン
-  - Googleサインアップボタン
+  - Google サインアップボタン
 - サインアップボタンのラベルをローディング中だけ変える：
 
 ```237:251:src/app/signup/page.jsx
@@ -217,7 +246,7 @@ export default function SignupPage() {
    - `favorites: []`
    - `histories: []`
    - `createdAt`, `updatedAt`
-   が入っていることを確認する。
+     が入っていることを確認する。
 7. `/ingredients` に直接アクセスしても、`AuthProvider` によりログイン状態と判定されていること（リダイレクトされないこと）を確認する。
 
 ---
@@ -226,7 +255,7 @@ export default function SignupPage() {
 
 レビュー時には、次の観点でコードを見直してみてください。
 
-- Firebase 周りの処理（Auth, Firestore ヘルパー）は **1か所に閉じ込められているか**  
+- Firebase 周りの処理（Auth, Firestore ヘルパー）は **1 か所に閉じ込められているか**
   - コンポーネント内で生の Firestore API を直接呼びすぎていないか
 - 例外処理：
   - `try/catch/finally` でローディング状態の ON/OFF が確実に行われているか
@@ -237,4 +266,13 @@ export default function SignupPage() {
 
 これらを満たせていれば、`Issue #4: サインアップフォームをFirebase Authに接続` は実装完了とみなせます。おつかれさまでした！
 
+---
 
+## 🌲 作業が完了したら
+
+1. `git add .`
+2. `git commit -m "feat: サインアップページをFirebase Authに接続"`
+3. `git push origin feature/issue-4-signup-page`
+4. GitHub 上で PR を作成
+
+---
