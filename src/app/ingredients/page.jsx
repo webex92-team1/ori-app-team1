@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/app/providers"; // Issue #2で作成されたプロバイダーからインポート
+import { useAuth } from "@/app/providers";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   ChefHat,
   Plus,
@@ -23,7 +22,7 @@ import {
   Home,
   User,
   Refrigerator,
-  Loader2, // ローディングアイコン用に追加
+  Loader2,
 } from "lucide-react";
 
 export default function IngredientsPage() {
@@ -31,34 +30,41 @@ export default function IngredientsPage() {
   const router = useRouter();
 
   // 食材タグの状態管理
-  const [ingredients, setIngredients] = useState(["卵", "玉ねぎ", "牛乳"]);
+  const [ingredients, setIngredients] = useState([]); // 初期値は空、またはlocalStorageから復元
   const [inputValue, setInputValue] = useState("");
-  const [isInitializing, setIsInitializing] = useState(true); // 初期化（データ復元）完了フラグ
+  const [isInitializing, setIsInitializing] = useState(true); // データ復元完了フラグ
 
   // 認証チェックと検索条件の復元
   useEffect(() => {
-    // Authのロードが完了するまで待機
-    if (!loading) {
-      if (!user) {
-        // 未ログインならリダイレクト
-        router.push("/login");
-        return;
-      }
+    // Authのロード中は待機
+    if (loading) return;
 
-      // ログイン済みならlocalStorageから食材を復元
-      const savedIngredients = localStorage.getItem("ingredients");
-      if (savedIngredients) {
-        try {
-          const parsed = JSON.parse(savedIngredients);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setIngredients(parsed);
-          }
-        } catch (e) {
-          console.error("Failed to load ingredients from localStorage", e);
-        }
-      }
-      setIsInitializing(false);
+    if (!user) {
+      // 未ログインならリダイレクト
+      router.push("/login");
+      return;
     }
+
+    // ログイン済みならlocalStorageから食材を復元
+    const savedIngredients = localStorage.getItem("ingredients");
+    if (savedIngredients) {
+      try {
+        const parsed = JSON.parse(savedIngredients);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setIngredients(parsed);
+        } else {
+          // 保存データがない場合のデフォルト例（ユーザビリティのため）
+          setIngredients(["卵", "玉ねぎ", "牛乳"]);
+        }
+      } catch (e) {
+        console.error("Failed to load ingredients from localStorage", e);
+        setIngredients(["卵", "玉ねぎ", "牛乳"]);
+      }
+    } else {
+      // 初回アクセス等のデフォルト
+      setIngredients(["卵", "玉ねぎ", "牛乳"]);
+    }
+    setIsInitializing(false);
   }, [user, loading, router]);
 
   // よく使われる食材のショートカット
@@ -113,14 +119,16 @@ export default function IngredientsPage() {
   // 検索ボタンハンドラ
   const handleSearch = () => {
     if (ingredients.length === 0) {
+      // UIを変更できないためalertで代用（Issue要件を満たす最小限の実装）
       alert("食材を入力してください");
       return;
     }
 
-    // 検索条件を保存
+    // 検索条件をlocalStorageに保存（次回訪問時の復元用）
     localStorage.setItem("ingredients", JSON.stringify(ingredients));
 
     // ページ遷移
+    // recipe.js側で受け取れるよう、スペース区切りの文字列にして渡します
     const query = encodeURIComponent(ingredients.join(" "));
     router.push(`/recipes?ingredients=${query}`);
   };
