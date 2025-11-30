@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/app/providers"; // Issue #2で作成されたプロバイダーからインポート
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,12 +23,43 @@ import {
   Home,
   User,
   Refrigerator,
+  Loader2, // ローディングアイコン用に追加
 } from "lucide-react";
 
 export default function IngredientsPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
   // 食材タグの状態管理
   const [ingredients, setIngredients] = useState(["卵", "玉ねぎ", "牛乳"]);
   const [inputValue, setInputValue] = useState("");
+  const [isInitializing, setIsInitializing] = useState(true); // 初期化（データ復元）完了フラグ
+
+  // 認証チェックと検索条件の復元
+  useEffect(() => {
+    // Authのロードが完了するまで待機
+    if (!loading) {
+      if (!user) {
+        // 未ログインならリダイレクト
+        router.push("/login");
+        return;
+      }
+
+      // ログイン済みならlocalStorageから食材を復元
+      const savedIngredients = localStorage.getItem("ingredients");
+      if (savedIngredients) {
+        try {
+          const parsed = JSON.parse(savedIngredients);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setIngredients(parsed);
+          }
+        } catch (e) {
+          console.error("Failed to load ingredients from localStorage", e);
+        }
+      }
+      setIsInitializing(false);
+    }
+  }, [user, loading, router]);
 
   // よく使われる食材のショートカット
   const commonIngredients = [
@@ -76,6 +109,30 @@ export default function IngredientsPage() {
       handleAddIngredient();
     }
   };
+
+  // 検索ボタンハンドラ
+  const handleSearch = () => {
+    if (ingredients.length === 0) {
+      alert("食材を入力してください");
+      return;
+    }
+
+    // 検索条件を保存
+    localStorage.setItem("ingredients", JSON.stringify(ingredients));
+
+    // ページ遷移
+    const query = encodeURIComponent(ingredients.join(" "));
+    router.push(`/recipes?ingredients=${query}`);
+  };
+
+  // 認証確認中または初期化中はローディング表示
+  if (loading || isInitializing) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans text-slate-900">
+        <Loader2 className="h-10 w-10 text-orange-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
@@ -251,16 +308,14 @@ export default function IngredientsPage() {
         {/* --- Search Recipes Button --- */}
         <div className="sticky bottom-6 z-40 flex justify-center pb-4 md:pb-0 md:static">
           <Button
-            asChild
+            onClick={handleSearch}
             size="lg"
             className={`w-full md:w-auto bg-orange-500 hover:bg-orange-600 text-white text-lg px-10 py-6 rounded-full shadow-xl hover:shadow-2xl transition-all font-bold transform hover:-translate-y-1 ${
-              ingredients.length === 0 ? "opacity-50 pointer-events-none" : ""
+              ingredients.length === 0 ? "opacity-50" : ""
             }`}
           >
-            <Link href="/recipes">
-              <Search className="h-5 w-5 mr-2" />
-              レシピを探す
-            </Link>
+            <Search className="h-5 w-5 mr-2" />
+            レシピを探す
           </Button>
         </div>
       </main>
