@@ -1,11 +1,17 @@
+// src/app/mypage/page.jsx
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@/app/providers";
+import { getUserProfile, removeFavoriteRecipe } from "@/lib/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Spinner } from "@/components/ui/spinner";
+import { toast } from "sonner";
 import {
   ChefHat,
   Home,
@@ -16,12 +22,88 @@ import {
   Clock,
   DollarSign,
   Edit,
+  Trash2,
+  History,
+  Calendar,
 } from "lucide-react";
-import { mockUser, getFavoriteRecipesDetails } from "@/lib/mockdata";
 
 export default function MyPage() {
-  // お気に入りレシピの詳細データを取得
-  const favoriteRecipes = getFavoriteRecipesDetails(mockUser.favorites);
+  const { user, signOut } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // プロフィールデータの取得
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return;
+      try {
+        const data = await getUserProfile(user.uid);
+        setProfile(data);
+      } catch (error) {
+        console.error("Profile fetch error:", error);
+        toast.error("プロフィールの取得に失敗しました");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [user]);
+
+  // お気に入り削除処理
+  const handleRemoveFavorite = async (e, recipe) => {
+    e.preventDefault(); // リンク遷移を防止
+    e.stopPropagation();
+
+    if (!user) return;
+
+    try {
+      // Firestoreから削除
+      await removeFavoriteRecipe({ uid: user.uid, recipe });
+      
+      // ローカルのstateを更新（再取得せず即時反映）
+      setProfile((prev) => ({
+        ...prev,
+        favorites: prev.favorites.filter((fav) => fav.recipeId !== recipe.recipeId),
+      }));
+
+      toast.success("お気に入りから削除しました");
+    } catch (error) {
+      console.error("Remove favorite error:", error);
+      toast.error("削除に失敗しました");
+    }
+  };
+
+  // ログアウト処理
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success("ログアウトしました");
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("ログアウトに失敗しました");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Spinner className="size-10 text-orange-500" />
+      </div>
+    );
+  }
+
+  // プロフィールがない場合（通常はありえないが念のため）
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+        <p className="text-slate-500 mb-4">ユーザーデータが見つかりません</p>
+        <Button onClick={() => window.location.reload()}>再読み込み</Button>
+      </div>
+    );
+  }
+
+  const { favorites = [], histories = [] } = profile;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
@@ -48,13 +130,10 @@ export default function MyPage() {
             </Button>
             <Button
               variant="ghost"
-              asChild
-              className="text-orange-500 bg-orange-50 hover:bg-orange-100 hover:text-orange-600"
+              className="text-orange-500 bg-orange-50 hover:bg-orange-100 hover:text-orange-600 pointer-events-none"
             >
-              <Link href="/mypage">
-                <User className="h-4 w-4 mr-2" />
-                マイページ
-              </Link>
+              <User className="h-4 w-4 mr-2" />
+              マイページ
             </Button>
           </div>
         </div>
@@ -65,15 +144,15 @@ export default function MyPage() {
         <Card className="mb-8 border-none shadow-md bg-white">
           <CardContent className="flex flex-col items-center p-8">
             <Avatar className="h-24 w-24 mb-4 border-4 border-orange-50">
-              <AvatarImage src="" alt={mockUser.name} />
+              <AvatarImage src={user.photoURL} alt={profile.name} />
               <AvatarFallback className="bg-orange-100 text-orange-500 text-2xl font-bold">
-                {mockUser.name.charAt(0)}
+                {profile.name?.charAt(0) || "U"}
               </AvatarFallback>
             </Avatar>
             <h2 className="text-xl font-bold text-slate-900 mb-1">
-              {mockUser.name}
+              {profile.name}
             </h2>
-            <p className="text-sm text-slate-500 mb-6">{mockUser.email}</p>
+            <p className="text-sm text-slate-500 mb-6">{profile.email}</p>
             <Button
               variant="outline"
               size="sm"
@@ -93,12 +172,12 @@ export default function MyPage() {
             <Heart className="h-5 w-5 text-orange-500 fill-orange-500" />
             お気に入りレシピ
             <span className="text-sm font-normal text-slate-500 ml-2">
-              ({favoriteRecipes.length})
+              ({favorites.length})
             </span>
           </h3>
 
           <div className="space-y-4">
-            {favoriteRecipes.length === 0 ? (
+            {favorites.length === 0 ? (
               <div className="text-center py-10 bg-white rounded-xl border border-dashed border-slate-300">
                 <p className="text-slate-500">
                   お気に入りのレシピはまだありません
@@ -108,42 +187,30 @@ export default function MyPage() {
                 </Button>
               </div>
             ) : (
-              favoriteRecipes.map((recipe) => (
+              favorites.map((recipe) => (
                 <Link
                   key={recipe.recipeId}
                   href={`/recipes/${recipe.recipeId}`}
                   className="block"
                 >
-                  <Card className="overflow-hidden border-none shadow-sm hover:shadow-md transition-all duration-300 group bg-white">
+                  <Card className="overflow-hidden border-none shadow-sm hover:shadow-md transition-all duration-300 group bg-white relative">
                     <div className="flex flex-col sm:flex-row p-3">
-                      {/* Image (Mobile: Top, Desktop: Left) */}
-                      <div className="relative w-full sm:w-40 h-40 sm:h-auto shrink-0 overflow-hidden">
+                      {/* Image */}
+                      <div className="relative w-full sm:w-40 h-40 sm:h-auto shrink-0 overflow-hidden rounded-md">
                         <img
-                          src={recipe.foodImageUrl}
+                          src={recipe.foodImageUrl || recipe.mediumImageUrl}
                           alt={recipe.recipeTitle}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
-                        {/* Pickup Badge (Mobile only) */}
-                        {recipe.pickup === 1 && (
-                          <div className="absolute top-2 left-2 sm:hidden bg-orange-500 text-white px-2 py-1 rounded-md text-[10px] font-bold shadow-md">
-                            人気
-                          </div>
-                        )}
                       </div>
 
                       {/* Content */}
-                      <CardContent className="flex-1 p-2 flex flex-col justify-between">
+                      <CardContent className="flex-1 p-2 flex flex-col justify-between ml-0 sm:ml-2">
                         <div>
                           <div className="flex justify-between items-start gap-2 mb-2">
-                            <h4 className="font-bold text-slate-800 line-clamp-2 group-hover:text-orange-500 transition-colors">
+                            <h4 className="font-bold text-slate-800 line-clamp-2 group-hover:text-orange-500 transition-colors pr-8">
                               {recipe.recipeTitle}
                             </h4>
-                            {/* Pickup Badge (Desktop only) */}
-                            {recipe.pickup === 1 && (
-                              <Badge className="hidden sm:inline-flex bg-orange-500 hover:bg-orange-600 text-[10px] shrink-0">
-                                人気
-                              </Badge>
-                            )}
                           </div>
 
                           <p className="text-xs text-slate-500 line-clamp-2 mb-3">
@@ -152,22 +219,88 @@ export default function MyPage() {
                         </div>
 
                         <div className="flex items-center gap-3 mt-auto">
-                          <Badge
-                            variant="secondary"
-                            className="bg-orange-100 text-orange-700 hover:bg-orange-100 text-[10px] flex items-center gap-1 px-2 py-0.5"
-                          >
-                            <Clock className="h-3 w-3" />
-                            {recipe.recipeIndication}
-                          </Badge>
-                          <Badge
-                            variant="secondary"
-                            className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px] flex items-center gap-1 px-2 py-0.5"
-                          >
-                            <DollarSign className="h-3 w-3" />
-                            {recipe.recipeCost}
-                          </Badge>
+                          {recipe.recipeIndication && (
+                            <Badge
+                              variant="secondary"
+                              className="bg-orange-100 text-orange-700 hover:bg-orange-100 text-[10px] flex items-center gap-1 px-2 py-0.5"
+                            >
+                              <Clock className="h-3 w-3" />
+                              {recipe.recipeIndication}
+                            </Badge>
+                          )}
+                          {recipe.recipeCost && (
+                            <Badge
+                              variant="secondary"
+                              className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px] flex items-center gap-1 px-2 py-0.5"
+                            >
+                              <DollarSign className="h-3 w-3" />
+                              {recipe.recipeCost}
+                            </Badge>
+                          )}
                         </div>
                       </CardContent>
+                    </div>
+                    {/* Remove Button */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-2 right-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full h-8 w-8"
+                      onClick={(e) => handleRemoveFavorite(e, recipe)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="sr-only">削除</span>
+                    </Button>
+                  </Card>
+                </Link>
+              ))
+            )}
+          </div>
+        </section>
+
+        <Separator className="my-8 bg-slate-200" />
+
+        {/* --- History Section --- */}
+        <section className="mb-10">
+          <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+            <History className="h-5 w-5 text-green-600" />
+            作った履歴
+            <span className="text-sm font-normal text-slate-500 ml-2">
+              ({histories.length})
+            </span>
+          </h3>
+
+          <div className="space-y-4">
+            {histories.length === 0 ? (
+              <div className="text-center py-10 bg-white rounded-xl border border-dashed border-slate-300">
+                <p className="text-slate-500">
+                  履歴はまだありません
+                </p>
+              </div>
+            ) : (
+              histories.map((item, index) => (
+                <Link
+                  key={`${item.recipeId}-${index}`}
+                  href={`/recipes/${item.recipeId}`}
+                  className="block"
+                >
+                  <Card className="border-none shadow-sm hover:shadow-md transition-all bg-white overflow-hidden">
+                    <div className="flex items-center p-3">
+                      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md">
+                        <img
+                          src={item.foodImageUrl || item.mediumImageUrl}
+                          alt={item.recipeTitle}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="ml-4 flex-1">
+                        <h4 className="font-bold text-sm text-slate-800 line-clamp-1 mb-1">
+                          {item.recipeTitle}
+                        </h4>
+                        <div className="flex items-center text-xs text-slate-500">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {item.cookedDate}
+                        </div>
+                      </div>
                     </div>
                   </Card>
                 </Link>
@@ -192,6 +325,7 @@ export default function MyPage() {
           </Button>
           <Button
             variant="ghost"
+            onClick={handleLogout}
             className="w-full justify-start h-12 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl"
           >
             <LogOut className="h-5 w-5 mr-3" />
