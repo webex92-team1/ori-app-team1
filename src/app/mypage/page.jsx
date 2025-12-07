@@ -3,8 +3,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useAuth } from "@/app/providers";
-import { getUserProfile, removeFavoriteRecipe } from "@/lib/firestore";
+import { useAuth } from "@/app/providers"; // Issue #2 で作成した AuthProvider
+import { getUserProfile, removeFavoriteRecipe } from "@/lib/firestore"; // Issue #3 で作成した Firestore ヘルパー
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -35,7 +35,10 @@ export default function MyPage() {
   // プロフィールデータの取得
   useEffect(() => {
     const fetchProfile = async () => {
+      // useAuth の loading が完了しても user が null の場合は
+      // RequireAuth によってリダイレクトされるため、ここでは user がある場合のみ処理
       if (!user) return;
+
       try {
         const data = await getUserProfile(user.uid);
         setProfile(data);
@@ -144,6 +147,7 @@ export default function MyPage() {
         <Card className="mb-8 border-none shadow-md bg-white">
           <CardContent className="flex flex-col items-center p-8">
             <Avatar className="h-24 w-24 mb-4 border-4 border-orange-50">
+              {/* Googleログイン等のアイコンがあれば表示 */}
               <AvatarImage src={user.photoURL} alt={profile.name} />
               <AvatarFallback className="bg-orange-100 text-orange-500 text-2xl font-bold">
                 {profile.name?.charAt(0) || "U"}
@@ -240,7 +244,7 @@ export default function MyPage() {
                         </div>
                       </CardContent>
                     </div>
-                    {/* Remove Button */}
+                    {/* Remove Button (右上) */}
                     <Button
                       variant="ghost"
                       size="icon"
@@ -277,8 +281,10 @@ export default function MyPage() {
                 </p>
               </div>
             ) : (
+              // 履歴は新しい順に表示する想定（Firestore側でソートしていない場合はここで reverse() などが必要ですが、今回はそのまま）
               histories.map((item, index) => (
                 <Link
+                  // keyはユニークにするため index も使用（同じレシピが複数回ある可能性があるため）
                   key={`${item.recipeId}-${index}`}
                   href={`/recipes/${item.recipeId}`}
                   className="block"
