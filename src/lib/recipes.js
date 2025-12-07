@@ -104,12 +104,46 @@ export const searchRecipesByCategory = async (categoryId, signal) => {
 };
 
 /**
- * レシピ詳細を取得（モックデータから）
- * @deprecated 実際のAPIでは詳細取得エンドポイントがないため、モック利用
+ * レシピ詳細を取得
+ * sessionStorageにキャッシュされたレシピデータを取得する
+ * 楽天レシピAPIには個別レシピ取得エンドポイントがないため、
+ * 一覧ページでクリック時にsessionStorageに保存しておく方式
+ * @param {string} recipeId - レシピID
+ * @returns {Object|null} レシピデータ
  */
-export const getRecipeDetail = async (recipeId, signal) => {
-  const found = mockRecipes.find((r) => r.id === recipeId);
-  return found || mockRecipes[0];
+export const getRecipeDetail = async (recipeId) => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    // sessionStorageから取得を試みる
+    const cached = sessionStorage.getItem(`recipe_${recipeId}`);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    // キャッシュがない場合はモックから探す（フォールバック）
+    const found = mockRecipes.find((r) => r.id === recipeId || r.recipeId === recipeId);
+    return found || null;
+  } catch (error) {
+    console.error("Failed to get recipe detail:", error);
+    return null;
+  }
+};
+
+/**
+ * レシピをsessionStorageにキャッシュする
+ * 一覧ページでカードクリック前に呼び出す
+ * @param {Object} recipe - レシピデータ
+ */
+export const cacheRecipeForDetail = (recipe) => {
+  if (typeof window === "undefined" || !recipe) return;
+
+  try {
+    const id = recipe.recipeId || recipe.id;
+    sessionStorage.setItem(`recipe_${id}`, JSON.stringify(recipe));
+  } catch (error) {
+    console.error("Failed to cache recipe:", error);
+  }
 };
 
 // 後方互換性のため、古い関数名もエクスポート（非推奨）

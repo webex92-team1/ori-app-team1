@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 
 import { mockCategories } from "@/lib/mockdata";
-import { searchRecipesByCategory } from "@/lib/recipes";
+import { searchRecipesByCategory, cacheRecipeForDetail } from "@/lib/recipes";
 
 // --- ローディングスケルトンコンポーネント ---
 const LoadingCard = () => (
@@ -175,10 +175,18 @@ function RecipesContent() {
     }
 
     // カードクリックで /recipes/[id] に遷移
+    const handleRecipeClick = (recipe) => {
+      cacheRecipeForDetail(recipe);
+    };
+
     return (
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredRecipes.map((recipe) => (
-          <Link key={recipe.recipeId} href={`/recipes/${recipe.recipeId}`}>
+          <Link 
+            key={recipe.recipeId} 
+            href={`/recipes/${recipe.recipeId}`}
+            onClick={() => handleRecipeClick(recipe)}
+          >
             <Card className="h-full overflow-hidden border-none shadow-md hover:shadow-xl transition-all duration-300 group cursor-pointer bg-white">
               <div className="relative h-48 w-full overflow-hidden">
                 <img
