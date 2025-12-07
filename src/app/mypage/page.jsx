@@ -194,6 +194,7 @@ export default function MyPage() {
                 >
                   <CardContent className="p-4 flex gap-4">
                     {fav.image && (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={fav.image}
                         alt={fav.title}
@@ -247,6 +248,7 @@ export default function MyPage() {
                   {history.map((item, index) => (
                     <li key={index} className="py-3 flex items-center gap-3">
                       {item.image && (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={item.image}
                           alt={item.title}

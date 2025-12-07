@@ -42,22 +42,16 @@ function RecipesContent() {
   const categoryName = searchParams.get("categoryName");
 
   // 状態管理
-  const [recipes, setRecipes] = useState(null);
+  const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   // --- useEffect + AbortControllerでAPIを呼び出す ---
   useEffect(() => {
-    // カテゴリーIDが存在しない場合は空状態を表示
+    // カテゴリーIDが存在しない場合は何もしない
     if (!categoryId) {
-      setRecipes([]);
-      setLoading(false);
       return;
     }
-
-    setLoading(true);
-    setError(null);
-    setRecipes(null);
 
     const controller = new AbortController();
     const signal = controller.signal;
@@ -80,6 +74,7 @@ function RecipesContent() {
 
         setRecipes(mappedRecipes);
         setLoading(false);
+        setError(null);
       } catch (err) {
         if (err.name === "AbortError") {
           return;
@@ -93,6 +88,11 @@ function RecipesContent() {
       }
     };
 
+    // 初期状態を設定してから非同期処理を開始
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRecipes([]);
+    setLoading(true);
+    setError(null);
     fetchRecipes();
 
     return () => controller.abort();
