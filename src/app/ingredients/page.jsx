@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import { Button } from "@/components/ui/button";
@@ -16,122 +16,156 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   ChefHat,
-  Plus,
-  X,
   Search,
   Home,
   User,
-  Refrigerator,
   Loader2,
+  Check,
+  X,
+  ChevronRight,
 } from "lucide-react";
+import {
+  loadCategories,
+  searchCategories,
+  popularCategories,
+} from "@/lib/categories";
 
 export default function IngredientsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const inputRef = useRef(null);
+  const dropdownRef = useRef(null);
 
-  // 食材タグの状態管理
-  const [ingredients, setIngredients] = useState([]); // 初期値は空、またはlocalStorageから復元
-  const [inputValue, setInputValue] = useState("");
-  const [isInitializing, setIsInitializing] = useState(true); // データ復元完了フラグ
+  // 状態管理
+  const [categories, setCategories] = useState([]); // 全カテゴリー
+  const [inputValue, setInputValue] = useState(""); // 検索入力
+  const [filteredCategories, setFilteredCategories] = useState([]); // 検索候補
+  const [selectedCategory, setSelectedCategory] = useState(null); // 選択されたカテゴリー
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // ドロップダウン表示
+  const [isInitializing, setIsInitializing] = useState(true); // 初期化中フラグ
+  const [highlightedIndex, setHighlightedIndex] = useState(-1); // キーボード選択用
 
-  // 認証チェックと検索条件の復元
+  // 認証チェックとカテゴリー読み込み
   useEffect(() => {
-    // Authのロード中は待機
     if (loading) return;
 
     if (!user) {
-      // 未ログインならリダイレクト
       router.push("/login");
       return;
     }
 
-    // ログイン済みならlocalStorageから食材を復元
-    const savedIngredients = localStorage.getItem("ingredients");
-    if (savedIngredients) {
-      try {
-        const parsed = JSON.parse(savedIngredients);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setIngredients(parsed);
-        } else {
-          // 保存データがない場合のデフォルト例（ユーザビリティのため）
-          setIngredients(["卵", "玉ねぎ", "牛乳"]);
-        }
-      } catch (e) {
-        console.error("Failed to load ingredients from localStorage", e);
-        setIngredients(["卵", "玉ねぎ", "牛乳"]);
-      }
-    } else {
-      // 初回アクセス等のデフォルト
-      setIngredients(["卵", "玉ねぎ", "牛乳"]);
-    }
-    setIsInitializing(false);
+    // カテゴリーを読み込む
+    const initCategories = async () => {
+      const cats = await loadCategories();
+      setCategories(cats);
+      setIsInitializing(false);
+    };
+
+    initCategories();
   }, [user, loading, router]);
 
-  // よく使われる食材のショートカット
-  const commonIngredients = [
-    "卵",
-    "玉ねぎ",
-    "牛乳",
-    "にんじん",
-    "じゃがいも",
-    "鶏肉",
-    "トマト",
-    "チーズ",
-    "キャベツ",
-    "豚肉",
-  ];
+  // 検索入力の変更を処理
+  const handleInputChange = useCallback(
+    (e) => {
+      const value = e.target.value;
+      setInputValue(value);
 
-  // 食材を追加する関数
-  const handleAddIngredient = () => {
-    const value = inputValue.trim();
-    if (value) {
-      // 全角・半角スペースで分割し、空文字を除外
-      const newIngredients = value.split(/[\s　]+/).filter(Boolean);
-      // 重複を除外して追加
-      setIngredients((prev) => {
-        const uniqueNew = newIngredients.filter((item) => !prev.includes(item));
-        return [...prev, ...uniqueNew];
-      });
-      setInputValue("");
+      if (value.trim()) {
+        const results = searchCategories(value, categories, 15);
+        setFilteredCategories(results);
+        setIsDropdownOpen(results.length > 0);
+        setHighlightedIndex(-1);
+      } else {
+        setFilteredCategories([]);
+        setIsDropdownOpen(false);
+      }
+    },
+    [categories]
+  );
+
+  // カテゴリーを選択
+  const handleSelectCategory = (category) => {
+    setSelectedCategory(category);
+    setInputValue("");
+    setFilteredCategories([]);
+    setIsDropdownOpen(false);
+    setHighlightedIndex(-1);
+  };
+
+  // 選択を解除
+  const handleClearSelection = () => {
+    setSelectedCategory(null);
+  };
+
+  // 人気カテゴリーから選択
+  const handleSelectPopular = (category) => {
+    // カテゴリー配列から完全な情報を取得
+    const fullCategory = categories.find((c) => c.id === category.id);
+    if (fullCategory) {
+      setSelectedCategory(fullCategory);
+    } else {
+      // 見つからない場合は人気カテゴリーの情報をそのまま使用
+      setSelectedCategory(category);
     }
   };
 
-  // 食材を削除する関数
-  const handleRemoveIngredient = (index) => {
-    setIngredients(ingredients.filter((_, i) => i !== index));
-  };
-
-  // ショートカットから食材を追加する関数
-  const handleAddFromShortcut = (ingredient) => {
-    if (!ingredients.includes(ingredient)) {
-      setIngredients([...ingredients, ingredient]);
-    }
-  };
-
-  // Enterキーでの追加ハンドリング（日本語変換確定時は発火させない）
+  // キーボード操作
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-      e.preventDefault();
-      handleAddIngredient();
+    if (!isDropdownOpen) return;
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setHighlightedIndex((prev) =>
+          prev < filteredCategories.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : -1));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (highlightedIndex >= 0 && filteredCategories[highlightedIndex]) {
+          handleSelectCategory(filteredCategories[highlightedIndex]);
+        }
+        break;
+      case "Escape":
+        setIsDropdownOpen(false);
+        setHighlightedIndex(-1);
+        break;
     }
   };
 
   // 検索ボタンハンドラ
   const handleSearch = () => {
-    if (ingredients.length === 0) {
-      // UIを変更できないためalertで代用（Issue要件を満たす最小限の実装）
-      alert("食材を入力してください");
+    if (!selectedCategory) {
+      alert("カテゴリーを選択してください");
       return;
     }
 
-    // 検索条件をlocalStorageに保存（次回訪問時の復元用）
-    localStorage.setItem("ingredients", JSON.stringify(ingredients));
-
-    // ページ遷移
-    // recipe.js側で受け取れるよう、スペース区切りの文字列にして渡します
-    const query = encodeURIComponent(ingredients.join(" "));
-    router.push(`/recipes?ingredients=${query}`);
+    // カテゴリーIDをクエリパラメータとして渡す
+    router.push(
+      `/recipes?categoryId=${encodeURIComponent(selectedCategory.id)}&categoryName=${encodeURIComponent(selectedCategory.name)}`
+    );
   };
+
+  // クリック外でドロップダウンを閉じる
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // 認証確認中または初期化中はローディング表示
   if (loading || isInitializing) {
@@ -185,73 +219,103 @@ export default function IngredientsPage() {
         <section className="mb-8 text-center md:text-left">
           <div className="flex flex-col md:flex-row items-center gap-3 mb-3">
             <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center shrink-0">
-              <Refrigerator className="h-6 w-6 text-orange-500" />
+              <Search className="h-6 w-6 text-orange-500" />
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
-                食材を入力
+                カテゴリーを選択
               </h1>
               <p className="text-slate-500 mt-1 text-sm md:text-base">
-                冷蔵庫にある食材を入力して、レシピを探しましょう
+                料理のカテゴリーを選んで、レシピを探しましょう
               </p>
             </div>
           </div>
         </section>
 
-        {/* --- Ingredients Input Form --- */}
+        {/* --- Category Search Form --- */}
         <Card className="mb-6 border-none shadow-md bg-white overflow-hidden">
           <CardHeader className="pb-4 bg-slate-50/50 border-b border-slate-100">
             <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Plus className="h-5 w-5 text-orange-500" />
-              食材を追加
+              <Search className="h-5 w-5 text-orange-500" />
+              カテゴリーを検索
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6 space-y-6">
-            <div className="space-y-4">
+            {/* 検索入力 */}
+            <div className="relative">
               <div className="flex gap-2">
-                <Input
-                  id="ingredient-input"
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="例：卵 玉ねぎ 牛乳"
-                  className="flex-1 h-12 text-base border-slate-300 focus:border-orange-500 focus:ring-orange-500"
-                />
-                <Button
-                  onClick={handleAddIngredient}
-                  className="bg-orange-500 hover:bg-orange-600 text-white h-12 px-6 rounded-md font-bold shadow-md hover:shadow-lg transition-all shrink-0"
-                >
-                  追加
-                </Button>
+                <div className="relative flex-1">
+                  <Input
+                    ref={inputRef}
+                    type="text"
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    onFocus={() => {
+                      if (filteredCategories.length > 0) {
+                        setIsDropdownOpen(true);
+                      }
+                    }}
+                    placeholder="例：カレー、ハンバーグ、パスタ..."
+                    className="h-12 text-base border-slate-300 focus:border-orange-500 focus:ring-orange-500"
+                  />
+
+                  {/* 検索候補ドロップダウン */}
+                  {isDropdownOpen && filteredCategories.length > 0 && (
+                    <div
+                      ref={dropdownRef}
+                      className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto"
+                    >
+                      {filteredCategories.map((category, index) => (
+                        <button
+                          key={category.id}
+                          type="button"
+                          onClick={() => handleSelectCategory(category)}
+                          className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-orange-50 transition-colors ${
+                            index === highlightedIndex
+                              ? "bg-orange-50"
+                              : ""
+                          } ${
+                            index !== filteredCategories.length - 1
+                              ? "border-b border-slate-100"
+                              : ""
+                          }`}
+                        >
+                          <span className="text-slate-700">{category.name}</span>
+                          <ChevronRight className="h-4 w-4 text-slate-400" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <p className="text-xs text-slate-500 flex items-center gap-1">
+              <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
                 <span className="text-slate-400">💡</span>
-                スペース区切りで複数入力できます
+                料理名やカテゴリー名を入力して検索
               </p>
             </div>
 
-            {/* --- Common Ingredients Shortcuts --- */}
+            {/* --- 人気カテゴリー --- */}
             <div>
               <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
-                よく使われる食材
+                人気のカテゴリー
               </h2>
               <div className="flex flex-wrap gap-2">
-                {commonIngredients.map((ingredient) => (
+                {popularCategories.map((category) => (
                   <Badge
-                    key={ingredient}
+                    key={category.id}
                     variant="outline"
                     className={`cursor-pointer px-3 py-1.5 text-sm font-medium transition-all ${
-                      ingredients.includes(ingredient)
-                        ? "bg-orange-50 border-orange-200 text-orange-600 opacity-50 cursor-default"
+                      selectedCategory?.id === category.id
+                        ? "bg-orange-50 border-orange-200 text-orange-600"
                         : "border-slate-200 text-slate-600 hover:border-orange-300 hover:text-orange-600 hover:bg-orange-50"
                     }`}
-                    onClick={() => handleAddFromShortcut(ingredient)}
+                    onClick={() => handleSelectPopular(category)}
                   >
-                    {ingredients.includes(ingredient) && (
-                      <span className="mr-1">✓</span>
+                    {selectedCategory?.id === category.id && (
+                      <Check className="h-3 w-3 mr-1" />
                     )}
-                    {ingredient}
+                    {category.name}
                   </Badge>
                 ))}
               </div>
@@ -259,55 +323,44 @@ export default function IngredientsPage() {
           </CardContent>
         </Card>
 
-        {/* --- Ingredients Tags List --- */}
+        {/* --- Selected Category Display --- */}
         <Card className="mb-10 border-none shadow-md bg-white">
           <CardHeader className="pb-4 border-b border-slate-100 flex flex-row items-center justify-between">
             <div className="space-y-1">
               <CardTitle className="text-lg font-bold text-slate-900">
-                現在のリスト
+                選択中のカテゴリー
               </CardTitle>
               <CardDescription className="text-slate-500">
-                {ingredients.length > 0
-                  ? `${ingredients.length}個の食材`
-                  : "食材はまだありません"}
+                {selectedCategory
+                  ? "このカテゴリーでレシピを検索します"
+                  : "カテゴリーを選択してください"}
               </CardDescription>
             </div>
-            {ingredients.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIngredients([])}
-                className="text-slate-400 hover:text-red-500 text-xs h-8"
-              >
-                すべて削除
-              </Button>
-            )}
           </CardHeader>
-          <CardContent className="pt-6 min-h-[120px]">
-            {ingredients.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-slate-400 border-2 border-dashed border-slate-100 rounded-xl bg-slate-50/50">
-                <Refrigerator className="h-10 w-10 mb-2 opacity-20" />
-                <p className="text-sm">食材が入力されていません</p>
+          <CardContent className="pt-6 min-h-[100px]">
+            {selectedCategory ? (
+              <div className="flex items-center gap-3">
+                <Badge
+                  variant="secondary"
+                  className="bg-orange-100 text-orange-700 border border-orange-200 px-4 py-2 text-lg font-medium flex items-center gap-2"
+                >
+                  <Check className="h-4 w-4" />
+                  {selectedCategory.name}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearSelection}
+                  className="text-slate-400 hover:text-red-500 h-8"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  クリア
+                </Button>
               </div>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {ingredients.map((ingredient, index) => (
-                  <Badge
-                    key={`${ingredient}-${index}`}
-                    variant="secondary"
-                    className="bg-orange-50 text-orange-700 border border-orange-100 pl-3 pr-1 py-1.5 text-base font-medium flex items-center gap-1 group hover:bg-orange-100 transition-colors"
-                  >
-                    <span>{ingredient}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveIngredient(index)}
-                      className="ml-1 hover:bg-orange-200 text-orange-400 hover:text-orange-700 rounded-full p-0.5 transition-colors"
-                      aria-label={`${ingredient}を削除`}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </Badge>
-                ))}
+              <div className="flex flex-col items-center justify-center py-6 text-slate-400 border-2 border-dashed border-slate-100 rounded-xl bg-slate-50/50">
+                <Search className="h-10 w-10 mb-2 opacity-20" />
+                <p className="text-sm">カテゴリーが選択されていません</p>
               </div>
             )}
           </CardContent>
@@ -318,8 +371,9 @@ export default function IngredientsPage() {
           <Button
             onClick={handleSearch}
             size="lg"
+            disabled={!selectedCategory}
             className={`w-full md:w-auto bg-orange-500 hover:bg-orange-600 text-white text-lg px-10 py-6 rounded-full shadow-xl hover:shadow-2xl transition-all font-bold transform hover:-translate-y-1 ${
-              ingredients.length === 0 ? "opacity-50" : ""
+              !selectedCategory ? "opacity-50 cursor-not-allowed" : ""
             }`}
           >
             <Search className="h-5 w-5 mr-2" />
