@@ -8,7 +8,6 @@ import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   ChefHat,
   Clock,
@@ -46,7 +45,6 @@ function RecipesContent() {
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState("all");
 
   // --- useEffect + AbortControllerでAPIを呼び出す ---
   useEffect(() => {
@@ -100,18 +98,6 @@ function RecipesContent() {
     return () => controller.abort();
   }, [categoryId]);
 
-  // --- カテゴリフィルター ---
-  const filteredRecipes = useMemo(() => {
-    if (!recipes) return [];
-
-    if (selectedCategory === "all") {
-      return recipes;
-    } else {
-      return recipes.filter((recipe) =>
-        recipe.categoryId.startsWith(selectedCategory)
-      );
-    }
-  }, [recipes, selectedCategory]);
 
   // レシピ一覧のメインコンテンツをレンダリングする関数
   const renderContent = () => {
@@ -286,50 +272,6 @@ function RecipesContent() {
         </div>
       </section>
 
-      <section className="bg-white border-b py-4">
-        <div className="container mx-auto px-4">
-          <div className="max-w-5xl mx-auto">
-            <h2 className="text-sm font-semibold text-slate-700 mb-3">
-              カテゴリで絞り込み
-            </h2>
-            <ScrollArea className="w-full">
-              <div className="flex gap-2 pb-2">
-                <Button
-                  variant={selectedCategory === "all" ? "default" : "outline"}
-                  onClick={() => setSelectedCategory("all")}
-                  className={
-                    selectedCategory === "all"
-                      ? "bg-orange-500 hover:bg-orange-600 text-white rounded-full shrink-0"
-                      : "border-slate-300 text-slate-700 hover:bg-slate-100 rounded-full shrink-0"
-                  }
-                >
-                  すべて
-                </Button>
-
-                {mockCategories.large.map((category) => (
-                  <Button
-                    key={category.categoryId}
-                    variant={
-                      selectedCategory === category.categoryId
-                        ? "default"
-                        : "outline"
-                    }
-                    onClick={() => setSelectedCategory(category.categoryId)}
-                    className={
-                      selectedCategory === category.categoryId
-                        ? "bg-orange-500 hover:bg-orange-600 text-white rounded-full shrink-0"
-                        : "border-slate-300 text-slate-700 hover:bg-slate-100 rounded-full shrink-0"
-                    }
-                  >
-                    {category.categoryName}
-                  </Button>
-                ))}
-              </div>
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
-          </div>
-        </div>
-      </section>
 
       <section className="py-10">
         <div className="container mx-auto px-4">
