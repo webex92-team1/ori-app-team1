@@ -98,7 +98,6 @@ function RecipesContent() {
     return () => controller.abort();
   }, [categoryId]);
 
-
   // レシピ一覧のメインコンテンツをレンダリングする関数
   const renderContent = () => {
     // カテゴリーIDが存在しない場合の空状態
@@ -147,7 +146,7 @@ function RecipesContent() {
     }
 
     // 検索結果0件 or フィルタリング結果0件
-    if (recipes.length === 0 || filteredRecipes.length === 0) {
+    if (recipes.length === 0) {
       const message =
         recipes.length === 0
           ? `「${categoryName || categoryId}」のレシピが見つかりませんでした。`
@@ -167,9 +166,9 @@ function RecipesContent() {
 
     return (
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredRecipes.map((recipe) => (
-          <Link 
-            key={recipe.recipeId} 
+        {recipes.map((recipe) => (
+          <Link
+            key={recipe.recipeId}
             href={`/recipes/${recipe.recipeId}`}
             onClick={() => handleRecipeClick(recipe)}
           >
@@ -265,13 +264,12 @@ function RecipesContent() {
                 ? `「${categoryName}」カテゴリで検索中`
                 : "カテゴリーを選択してください"}
               {recipes && recipes.length > 0 && (
-                <span> | {filteredRecipes.length}件のレシピが見つかりました</span>
+                <span> | {recipes.length}件のレシピが見つかりました</span>
               )}
             </p>
           </div>
         </div>
       </section>
-
 
       <section className="py-10">
         <div className="container mx-auto px-4">
